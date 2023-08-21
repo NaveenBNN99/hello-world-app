@@ -1,27 +1,13 @@
-# Use an official OpenJDK runtime as the base image
-FROM openjdk:8-jdk-alpine
-
-# Set the working directory within the container
+# Stage 1: Build the application
+FROM maven:3.8.4-openjdk-11-slim AS build
 WORKDIR /app
-
-# Copy the Maven executable to the image
-COPY mvnw .
-COPY .mvn .mvn
-
-# Copy the pom.xml file
-COPY pom.xml .
-
-# Make Maven wrapper executable
+COPY . .
 RUN chmod +x mvnw
+RUN ./mvnw clean package -DskipTests
 
-# Download dependencies and create layer
-RUN ./mvnw dependency:go-offline -B
-
-# Copy project source code
-COPY src src
-
-# Build the application
-RUN ./mvnw package -DskipTests
-
-# Specify the command to run the application
-CMD ["java", "-jar", "target/course-api-0.0.1-SNAPSHOT.jar"]
+# Stage 2: Create the final image
+FROM openjdk:11-jre-slim
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8080
+CMD ["java", "-jar", "app.jar"]
